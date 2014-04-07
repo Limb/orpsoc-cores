@@ -1,0 +1,13 @@
+SAPI=1
+[main]
+name = nexys4
+description = "Digilent Nexys4 OpenRISC system"
+
+backend = ise
+
+[ise]
+family = "Artix7"
+device = XC7A100T
+package = CSG324
+speed = -2
+top_module = orpsoc_top
