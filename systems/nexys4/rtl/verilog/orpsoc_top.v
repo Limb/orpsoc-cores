@@ -1,188 +1,257 @@
+//`include "orpsoc-defines.v"
 module orpsoc_top #(
-		parameter UART_SIM = 0
+parameter	rom0_aw = 6,
+parameter	uart0_aw = 3
 )(
-		input wb_clk_i,
-		input wb_rst_i
+input	sys_clk_pad_i,
+input	rst_n_pad_i,
+
+// UART
+input	uart0_srx_pad_i,
+output	uart0_stx_pad_o,
+
+// GPIO
+inout	[7:0]	gpio0_io
+
 );
 
-localparam wb_aw = 32;
-localparam wb_dw = 32;
-
-localparam MEM_SIZE_BITS = 23;
+parameter	IDCODE_VALUE=32'h14951185;
+localparam	MEM_SIZE_BITS = 12;
 
 ////////////////////////////////////////////////////////////////////////
 //
-// Wishbone interconnect
+// Clock and reset generation module
 //
 ////////////////////////////////////////////////////////////////////////
-wire wb_clk = wb_clk_i;
-wire wb_rst = wb_rst_i;
 
+wire	async_rst;
+wire	wb_clk, wb_rst;
+
+wire	clk100;
+
+clkgen clkgen0 (
+.sys_clk_pad_i	(sys_clk_pad_i),
+.rst_n_pad_i	(rst_n_pad_i),
+.async_rst_o	(async_rst),
+.wb_clk_o	(wb_clk),
+.wb_rst_o	(wb_rst),
+
+.clk100_o	(clk100)
+);
+
+////////////////////////////////////////////////////////////////////////
+//
+// Modules interconnections
+//
+////////////////////////////////////////////////////////////////////////
 `include "wb_intercon.vh"
 
 ////////////////////////////////////////////////////////////////////////
 //
-// mor1kx cpu
+// OR1K CPU
 //
 ////////////////////////////////////////////////////////////////////////
 
-wire [31:0]	or1k_irq;
-wire		or1k_clk;
-wire		or1k_rst;
+wire	[31:0]	or1k_irq;
 
-assign or1k_clk = wb_clk;
-assign or1k_rst = wb_rst;
+wire	[31:0]	or1k_dbg_dat_i;
+wire	[31:0]	or1k_dbg_adr_i;
+wire	or1k_dbg_we_i;
+wire	or1k_dbg_stb_i;
+wire	or1k_dbg_ack_o;
+wire	[31:0]	or1k_dbg_dat_o;
+
+wire	or1k_dbg_stall_i;
+wire	or1k_dbg_ewt_i;
+wire	[3:0]	or1k_dbg_lss_o;
+wire	[1:0]	or1k_dbg_is_o;
+wire	[10:0]	or1k_dbg_wp_o;
+wire	or1k_dbg_bp_o;
+wire	or1k_dbg_rst;
+
+wire	sig_tick;
+
+wire	or1k_rst;
+
+assign or1k_rst = wb_rst | or1k_dbg_rst;
 
 mor1kx #(
-	.FEATURE_DEBUGUNIT		("ENABLED"),
-	.FEATURE_CMOV			("ENABLED"),
-	.FEATURE_INSTRUCTIONCACHE	("ENABLED"),
-	.OPTION_ICACHE_BLOCK_WIDTH	(5),
-	.OPTION_ICACHE_SET_WIDTH	(8),
-	.OPTION_ICACHE_WAYS		(2),
-	.OPTION_ICACHE_LIMIT_WIDTH	(32),
-	.FEATURE_IMMU			("ENABLED"),
-	.FEATURE_DATACACHE		("ENABLED"),
-	.OPTION_DCACHE_BLOCK_WIDTH	(5),
-	.OPTION_DCACHE_SET_WIDTH	(8),
-	.OPTION_DCACHE_WAYS		(2),
-	.OPTION_DCACHE_LIMIT_WIDTH	(31),
-	.FEATURE_DMMU			("ENABLED"),
-	.OPTION_PIC_TRIGGER		("LATCHED_LEVEL"),
+.FEATURE_DEBUGUNIT("ENABLED"),
+.FEATURE_CMOV("ENABLED"),
+.FEATURE_INSTRUCTIONCACHE("ENABLED"),
+.OPTION_ICACHE_BLOCK_WIDTH(5),
+.OPTION_ICACHE_SET_WIDTH(8),
+.OPTION_ICACHE_WAYS(2),
+.OPTION_ICACHE_LIMIT_WIDTH(32),
+.FEATURE_IMMU("ENABLED"),
+.FEATURE_DATACACHE("ENABLED"),
+.OPTION_DCACHE_BLOCK_WIDTH(5),
+.OPTION_DCACHE_SET_WIDTH(8),
+.OPTION_DCACHE_WAYS(2),
+.OPTION_DCACHE_LIMIT_WIDTH(31),
+.FEATURE_DMMU("ENABLED"),
+.OPTION_PIC_TRIGGER("LATCHED_LEVEL"),
 
-	.IBUS_WB_TYPE			("B3_REGISTERED_FEEDBACK"),
-	.DBUS_WB_TYPE			("B3_REGISTERED_FEEDBACK"),
-	.OPTION_CPU0			("CAPPUCCINO"),
-	.OPTION_RESET_PC		(32'h00000100)
+.IBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
+.DBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
+.OPTION_CPU0("CAPPUCCINO"),
+.OPTION_RESET_PC(32'hf0000100)
 ) mor1kx0 (
-	.iwbm_adr_o			(wb_m2s_or1k_i_adr),
-	.iwbm_stb_o			(wb_m2s_or1k_i_stb),
-	.iwbm_cyc_o			(wb_m2s_or1k_i_cyc),
-	.iwbm_sel_o			(wb_m2s_or1k_i_sel),
-	.iwbm_we_o			(wb_m2s_or1k_i_we),
-	.iwbm_cti_o			(wb_m2s_or1k_i_cti),
-	.iwbm_bte_o			(wb_m2s_or1k_i_bte),
-	.iwbm_dat_o			(wb_m2s_or1k_i_dat),
+.iwbm_adr_o(wb_m2s_or1k_i_adr),
+.iwbm_stb_o(wb_m2s_or1k_i_stb),
+.iwbm_cyc_o(wb_m2s_or1k_i_cyc),
+.iwbm_sel_o(wb_m2s_or1k_i_sel),
+.iwbm_we_o (wb_m2s_or1k_i_we),
+.iwbm_cti_o(wb_m2s_or1k_i_cti),
+.iwbm_bte_o(wb_m2s_or1k_i_bte),
+.iwbm_dat_o(wb_m2s_or1k_i_dat),
 
-	.dwbm_adr_o			(wb_m2s_or1k_d_adr),
-	.dwbm_stb_o			(wb_m2s_or1k_d_stb),
-	.dwbm_cyc_o			(wb_m2s_or1k_d_cyc),
-	.dwbm_sel_o			(wb_m2s_or1k_d_sel),
-	.dwbm_we_o			(wb_m2s_or1k_d_we ),
-	.dwbm_cti_o			(wb_m2s_or1k_d_cti),
-	.dwbm_bte_o			(wb_m2s_or1k_d_bte),
-	.dwbm_dat_o			(wb_m2s_or1k_d_dat),
+.dwbm_adr_o(wb_m2s_or1k_d_adr),
+.dwbm_stb_o(wb_m2s_or1k_d_stb),
+.dwbm_cyc_o(wb_m2s_or1k_d_cyc),
+.dwbm_sel_o(wb_m2s_or1k_d_sel),
+.dwbm_we_o (wb_m2s_or1k_d_we ),
+.dwbm_cti_o(wb_m2s_or1k_d_cti),
+.dwbm_bte_o(wb_m2s_or1k_d_bte),
+.dwbm_dat_o(wb_m2s_or1k_d_dat),
 
-	.clk				(or1k_clk),
-	.rst				(or1k_rst),
+.clk(wb_clk),
+.rst(or1k_rst),
 
-	.iwbm_err_i			(wb_s2m_or1k_i_err),
-	.iwbm_ack_i			(wb_s2m_or1k_i_ack),
-	.iwbm_dat_i			(wb_s2m_or1k_i_dat),
-	.iwbm_rty_i			(wb_s2m_or1k_i_rty),
+.iwbm_err_i(wb_s2m_or1k_i_err),
+.iwbm_ack_i(wb_s2m_or1k_i_ack),
+.iwbm_dat_i(wb_s2m_or1k_i_dat),
+.iwbm_rty_i(wb_s2m_or1k_i_rty),
 
-	.dwbm_err_i			(wb_s2m_or1k_d_err),
-	.dwbm_ack_i			(wb_s2m_or1k_d_ack),
-	.dwbm_dat_i			(wb_s2m_or1k_d_dat),
-	.dwbm_rty_i			(wb_s2m_or1k_d_rty),
+.dwbm_err_i(wb_s2m_or1k_d_err),
+.dwbm_ack_i(wb_s2m_or1k_d_ack),
+.dwbm_dat_i(wb_s2m_or1k_d_dat),
+.dwbm_rty_i(wb_s2m_or1k_d_rty),
 
-	.irq_i				(or1k_irq),
+.irq_i(or1k_irq),
 
-	.du_addr_i			(16'b0),
-	.du_stb_i			(1'b0),
-	.du_dat_i			(32'b0),
-	.du_we_i			(1'b0),
-	.du_dat_o			(),
-	.du_ack_o			(),
-	.du_stall_i			(1'b0),
-	.du_stall_o			()
+.du_addr_i(or1k_dbg_adr_i[15:0]),
+.du_stb_i(or1k_dbg_stb_i),
+.du_dat_i(or1k_dbg_dat_i),
+.du_we_i(or1k_dbg_we_i),
+.du_dat_o(or1k_dbg_dat_o),
+.du_ack_o(or1k_dbg_ack_o),
+.du_stall_i(or1k_dbg_stall_i),
+.du_stall_o(or1k_dbg_bp_o)
 );
 
 ////////////////////////////////////////////////////////////////////////
 //
-// Generic main RAM
+// wb_ram0
 //
 ////////////////////////////////////////////////////////////////////////
-ram_wb_b3 #(
-	.mem_size_bytes	(2**MEM_SIZE_BITS*(wb_dw/8)),
-	.mem_adr_width	(MEM_SIZE_BITS)
-) wb_bfm_memory0 (
-	//Wishbone Master interface
-	.wb_clk_i	(wb_clk_i),
-	.wb_rst_i	(wb_rst_i),
-	.wb_adr_i	(wb_m2s_mem_adr & (2**MEM_SIZE_BITS-1)),
-	.wb_dat_i	(wb_m2s_mem_dat),
-	.wb_sel_i	(wb_m2s_mem_sel),
-	.wb_we_i	(wb_m2s_mem_we),
-	.wb_cyc_i	(wb_m2s_mem_cyc),
-	.wb_stb_i	(wb_m2s_mem_stb),
-	.wb_cti_i	(wb_m2s_mem_cti),
-	.wb_bte_i	(wb_m2s_mem_bte),
-	.wb_dat_o	(wb_s2m_mem_dat),
-	.wb_ack_o	(wb_s2m_mem_ack),
-	.wb_err_o	(wb_s2m_mem_err),
-	.wb_rty_o	(wb_s2m_mem_rty)
+ wb_ram
+     #(.depth (2**MEM_SIZE_BITS))
+   wb_ram0
+     (
+      //Wishbone Master interface
+      .wb_clk_i (wb_clk),
+      .wb_rst_i (wb_rst_i),
+      .wb_adr_i	(wb_m2s_mem_adr[MEM_SIZE_BITS-1:0]),
+      .wb_dat_i	(wb_m2s_mem_dat),
+      .wb_sel_i	(wb_m2s_mem_sel),
+      .wb_we_i	(wb_m2s_mem_we),
+      .wb_cyc_i	(wb_m2s_mem_cyc),
+      .wb_stb_i	(wb_m2s_mem_stb),
+      .wb_cti_i	(wb_m2s_mem_cti),
+      .wb_bte_i	(wb_m2s_mem_bte),
+      .wb_dat_o	(wb_s2m_mem_dat),
+      .wb_ack_o	(wb_s2m_mem_ack),
+      .wb_err_o (wb_s2m_mem_err),
+      .wb_rty_o (wb_s2m_mem_rty)
 );
-
-wb_uart_wrapper #(
-	.DEBUG	(0),
-	.SIM	(UART_SIM)
-) wb_uart_wrapper0 (
-	//Wishbone Master interface
-	.wb_clk_i	(wb_clk_i),
-	.wb_rst_i	(wb_rst_i),
-	.rx		(1'b0),
-	.tx		(uart),
-	.wb_adr_i	(wb_m2s_uart_adr),
-	.wb_dat_i	(wb_m2s_uart_dat),
-	.wb_we_i	(wb_m2s_uart_we),
-	.wb_cyc_i	(wb_m2s_uart_cyc),
-	.wb_stb_i	(wb_m2s_uart_stb),
-	.wb_cti_i	(wb_m2s_uart_cti),
-	.wb_bte_i	(wb_m2s_uart_bte),
-	.wb_dat_o	(wb_s2m_uart_dat),
-	.wb_ack_o	(wb_s2m_uart_ack),
-	.wb_err_o	(wb_s2m_uart_err),
-	.wb_rty_o	(wb_s2m_uart_rty)
-);
-
-`ifdef VERILATOR
-wire [7:0]	uart_rx_data;
-wire		uart_rx_done;
-
-uart_transceiver uart_transceiver0 (
-	.sys_rst	(wb_rst_i),
-	.sys_clk	(wb_clk_i),
-
-	.uart_rx	(uart),
-	.uart_tx	(),
-
-	.divisor	(16'd26),
-
-	.rx_data	(uart_rx_data),
-	.rx_done	(uart_rx_done),
-
-	.tx_data	(8'h00),
-	.tx_wr		(1'b0),
-	.tx_done	(),
-
-	.rx_break	()
-);
-
-always @(posedge wb_clk_i)
-	if(uart_rx_done)
-		$write("%c", uart_rx_data);
-
-`endif
 
 ////////////////////////////////////////////////////////////////////////
 //
-// CPU Interrupt assignments
+// UART0
 //
 ////////////////////////////////////////////////////////////////////////
+
+wire	uart0_irq;
+
+uart_top uart16550_0 (
+// Wishbone slave interface
+.wb_clk_i	(wb_clk),
+.wb_rst_i	(wb_rst),
+.wb_adr_i	(wb_m2s_uart0_adr[uart0_aw-1:0]),
+.wb_dat_i	(wb_m2s_uart0_dat),
+.wb_we_i	(wb_m2s_uart0_we),
+.wb_stb_i	(wb_m2s_uart0_stb),
+.wb_cyc_i	(wb_m2s_uart0_cyc),
+.wb_sel_i	(4'b0), // Not used in 8-bit mode
+.wb_dat_o	(wb_s2m_uart0_dat),
+.wb_ack_o	(wb_s2m_uart0_ack),
+
+// Outputs
+.int_o	(uart0_irq),
+.stx_pad_o	(uart0_stx_pad_o),
+.rts_pad_o	(),
+.dtr_pad_o	(),
+
+// Inputs
+.srx_pad_i	(uart0_srx_pad_i),
+.cts_pad_i	(1'b0),
+.dsr_pad_i	(1'b0),
+.ri_pad_i	(1'b0),
+.dcd_pad_i	(1'b0)
+);
+
+////////////////////////////////////////////////////////////////////////
+//
+// GPIO 0
+//
+////////////////////////////////////////////////////////////////////////
+/*
+wire [7:0]	gpio0_in;
+wire [7:0]	gpio0_out;
+wire [7:0]	gpio0_dir;
+
+// Tristate logic for IO
+// 0 = input, 1 = output
+genvar i;
+generate
+for (i = 0; i < 8; i = i+1) begin: gpio0_tris
+assign gpio0_io[i] = gpio0_dir[i] ? gpio0_out[i] : 1'bz;
+assign gpio0_in[i] = gpio0_dir[i] ? gpio0_out[i] : gpio0_io[i];
+end
+endgenerate
+
+gpio gpio0 (
+// GPIO bus
+.gpio_i	(gpio0_in),
+.gpio_o	(gpio0_out),
+.gpio_dir_o	(gpio0_dir),
+// Wishbone slave interface
+.wb_adr_i	(wb_m2s_gpio0_adr[0]),
+.wb_dat_i	(wb_m2s_gpio0_dat),
+.wb_we_i	(wb_m2s_gpio0_we),
+.wb_cyc_i	(wb_m2s_gpio0_cyc),
+.wb_stb_i	(wb_m2s_gpio0_stb),
+.wb_cti_i	(wb_m2s_gpio0_cti),
+.wb_bte_i	(wb_m2s_gpio0_bte),
+.wb_dat_o	(wb_s2m_gpio0_dat),
+.wb_ack_o	(wb_s2m_gpio0_ack),
+.wb_err_o	(wb_s2m_gpio0_err),
+.wb_rty_o	(wb_s2m_gpio0_rty),
+
+.wb_clk	(wb_clk),
+.wb_rst	(wb_rst)
+);
+*/
+////////////////////////////////////////////////////////////////////////
+//
+// Interrupt assignment
+//
+////////////////////////////////////////////////////////////////////////
+
 assign or1k_irq[0] = 0; // Non-maskable inside OR1K
 assign or1k_irq[1] = 0; // Non-maskable inside OR1K
-assign or1k_irq[2] = 0;
+assign or1k_irq[2] = uart0_irq;
 assign or1k_irq[3] = 0;
 assign or1k_irq[4] = 0;
 assign or1k_irq[5] = 0;
@@ -211,5 +280,6 @@ assign or1k_irq[27] = 0;
 assign or1k_irq[28] = 0;
 assign or1k_irq[29] = 0;
 assign or1k_irq[30] = 0;
+assign or1k_irq[31] = 0;
 
-endmodule
+endmodule // orpsoc_top

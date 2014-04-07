@@ -11,3 +11,4 @@ device = XC7A100T
 package = CSG324
 speed = -2
 top_module = orpsoc_top
+ucf_files = data/nexys4.ucf

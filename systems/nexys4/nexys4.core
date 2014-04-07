@@ -2,11 +2,9 @@ CAPI=1
 [main]
 depend =
  mor1kx
- ram_wb
  uart16550
- vlog_tb_utils
- verilator_tb_utils
  wb_bfm
+ wb_ram
  wb_intercon
 
 simulators =
@@ -15,6 +13,7 @@ simulators =
 [verilog]
 src_files =
  rtl/verilog/orpsoc_top.v
+ rtl/verilog/clkgen.v
  rtl/verilog/wb_intercon.v
 
 include_files =
