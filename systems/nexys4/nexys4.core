@@ -6,6 +6,9 @@ depend =
  wb_bfm
  wb_ram
  wb_intercon
+ adv_debug_sys
+ jtag_tap
+ gpio
 
 simulators =
  icarus

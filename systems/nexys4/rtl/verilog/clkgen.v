@@ -19,6 +19,8 @@ module clkgen
 	// Wishbone clock and reset out
 	output wb_clk_o,
 	output wb_rst_o,
+
+	// Main memory clocks
 	output clk100_o
 );
 
@@ -159,9 +161,9 @@ BUFG pll0_clk1_bufg
 
 assign wb_clk_o = pll0_clk1;
 assign sync_wb_rst_n = pll0_locked;
-assign sync_ddr2_rst_n = dcm0_locked;
 
 assign clk100_o = dcm0_clk0; // 100MHz
+
 
 //
 // Reset generation
@@ -177,7 +179,5 @@ always @(posedge wb_clk_o or posedge async_rst_o)
 		wb_rst_shr <= {wb_rst_shr[14:0], ~(sync_wb_rst_n)};
 
 assign wb_rst_o = wb_rst_shr[15];
-
-assign ddr2_if_rst_o = async_rst_o;
 
 endmodule // clkgen
