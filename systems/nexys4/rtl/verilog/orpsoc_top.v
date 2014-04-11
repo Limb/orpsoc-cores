@@ -16,7 +16,11 @@ inout	[7:0]	gpio0_io
 );
 
 parameter	IDCODE_VALUE=32'h13631093;
-localparam	MEM_SIZE_BITS = 12;
+
+localparam wb_aw = 32;
+localparam wb_dw = 32;
+
+localparam MEM_SIZE_BITS = 12;
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -24,11 +28,25 @@ localparam	MEM_SIZE_BITS = 12;
 //
 ////////////////////////////////////////////////////////////////////////
 
-wire	wb_clk, wb_rst;
+//
+// Wires
+//
+wire wb_clk, wb_rst;
+wire dbg_tck;
+wire reset_invert;
 
-assign wb_clk = sys_clk_pad_i;
-assign wb_rst = rst_n_pad_i;
+assign reset_invert = ~rst_n_pad_i;
 
+clkgen clkgen0
+ (
+	.sys_clk_in (sys_clk_pad_i),
+
+	.wb_clk_o (wb_clk),
+	.wb_rst_o (wb_rst),
+
+	// Asynchronous active low reset
+	.rst_i (reset_invert)
+ );
 ////////////////////////////////////////////////////////////////////////
 //
 // Modules interconnections
@@ -76,6 +94,22 @@ BSCANE2_inst (
    .UPDATE(dbg_update_o),   // 1-bit output: UPDATE output from TAP controller
    .TDO(dbg_tdo_i)          // 1-bit input: Test Data Output (TDO) input for USER function.
 );
+/*
+minsoc_xilinx_internal_jtag tap_top(
+	.tck_o( dbg_tck_o ),
+	.debug_tdo_i( dbg_tdo_i ),
+	.tdi_o( debug_tdi_o ),
+ 
+	.test_logic_reset_o( dbg_reset_o ),
+	.run_test_idle_o( dbg_runtest_o ),
+ 
+	.shift_dr_o( dbg_shift_o ),
+	.capture_dr_o( dbg_capture_o ),
+	.pause_dr_o( dbg_pause_o ),
+	.update_dr_o( dbg_update_o ),
+	.debug_select_o( dbg_sel_o )
+);
+*/
 ////////////////////////////////////////////////////////////////////////
 //
 // OR1K CPU
@@ -93,9 +127,6 @@ wire	[31:0]	or1k_dbg_dat_o;
 wire		or1k_dbg_ack_o;
 wire		or1k_dbg_stall_i;
 wire		or1k_dbg_bp_o;
-wire		or1k_dbg_rst;
-
-assign or1k_rst = wb_rst | or1k_dbg_rst;
 
 mor1kx #(
 	.FEATURE_DEBUGUNIT("ENABLED"),
@@ -138,7 +169,7 @@ mor1kx #(
 	.dwbm_dat_o(wb_m2s_or1k_d_dat),
 
 	.clk(wb_clk),
-	.rst(or1k_rst),
+	.rst(wb_rst),
 
 	.iwbm_err_i(wb_s2m_or1k_i_err),
 	.iwbm_ack_i(wb_s2m_or1k_i_ack),
@@ -171,7 +202,7 @@ mor1kx #(
 adbg_top dbg_if0 (
 	// OR1K interface
 	.cpu0_clk_i	(wb_clk),
-	.cpu0_rst_o	(or1k_dbg_rst),
+	.cpu0_rst_o	(or1k_rst),
 	.cpu0_addr_o	(or1k_dbg_adr_i),
 	.cpu0_data_o	(or1k_dbg_dat_i),
 	.cpu0_stb_o	(or1k_dbg_stb_i),
@@ -212,7 +243,7 @@ adbg_top dbg_if0 (
 
 ////////////////////////////////////////////////////////////////////////
 //
-// wb_ram0
+// ram_wb0
 //
 ////////////////////////////////////////////////////////////////////////
  wb_ram
@@ -222,20 +253,19 @@ adbg_top dbg_if0 (
       //Wishbone Master interface
       .wb_clk_i (wb_clk),
       .wb_rst_i (wb_rst),
-      .wb_adr_i	(wb_m2s_mem_adr[MEM_SIZE_BITS-1:0]),
-      .wb_dat_i	(wb_m2s_mem_dat),
-      .wb_sel_i	(wb_m2s_mem_sel),
-      .wb_we_i	(wb_m2s_mem_we),
-      .wb_cyc_i	(wb_m2s_mem_cyc),
-      .wb_stb_i	(wb_m2s_mem_stb),
-      .wb_cti_i	(wb_m2s_mem_cti),
-      .wb_bte_i	(wb_m2s_mem_bte),
-      .wb_dat_o	(wb_s2m_mem_dat),
-      .wb_ack_o	(wb_s2m_mem_ack),
+      .wb_adr_i (wb_m2s_mem_adr[MEM_SIZE_BITS-1:0]),
+      .wb_dat_i (wb_m2s_mem_dat),
+      .wb_sel_i (wb_m2s_mem_sel),
+      .wb_we_i  (wb_m2s_mem_we),
+      .wb_cyc_i (wb_m2s_mem_cyc),
+      .wb_stb_i (wb_m2s_mem_stb),
+      .wb_cti_i (wb_m2s_mem_cti),
+      .wb_bte_i (wb_m2s_mem_bte),
+      .wb_dat_o (wb_s2m_mem_dat),
+      .wb_ack_o (wb_s2m_mem_ack),
       .wb_err_o (wb_s2m_mem_err),
       .wb_rty_o (wb_s2m_mem_rty)
 );
-
 ////////////////////////////////////////////////////////////////////////
 //
 // UART0
