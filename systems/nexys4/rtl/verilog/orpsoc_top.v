@@ -246,26 +246,31 @@ adbg_top dbg_if0 (
 // ram_wb0
 //
 ////////////////////////////////////////////////////////////////////////
- wb_ram
-     #(.depth (2**MEM_SIZE_BITS))
-   wb_ram0
+ram_wb_b3 
+   #(
+     .mem_size_bytes(32'h0000_1000), // 4 KByte
+     .mem_adr_width(12) //log2(mem_size_bytes)
+     )
+   ram_wb0
      (
-      //Wishbone Master interface
-      .wb_clk_i (wb_clk),
-      .wb_rst_i (wb_rst),
-      .wb_adr_i (wb_m2s_mem_adr[MEM_SIZE_BITS-1:0]),
-      .wb_dat_i (wb_m2s_mem_dat),
-      .wb_sel_i (wb_m2s_mem_sel),
-      .wb_we_i  (wb_m2s_mem_we),
-      .wb_cyc_i (wb_m2s_mem_cyc),
-      .wb_stb_i (wb_m2s_mem_stb),
-      .wb_cti_i (wb_m2s_mem_cti),
-      .wb_bte_i (wb_m2s_mem_bte),
-      .wb_dat_o (wb_s2m_mem_dat),
-      .wb_ack_o (wb_s2m_mem_ack),
-      .wb_err_o (wb_s2m_mem_err),
-      .wb_rty_o (wb_s2m_mem_rty)
-);
+      // Wishbone slave interface 0
+      .wb_clk_i(wb_clk),
+      .wb_rst_i(wb_rst),
+      
+      .wb_adr_i(wb_m2s_mem_adr),
+      .wb_dat_i(wb_m2s_mem_dat),
+      .wb_sel_i(wb_m2s_mem_sel),
+      .wb_we_i(wb_m2s_mem_we),
+      .wb_bte_i(wb_m2s_mem_bte),
+      .wb_cti_i(wb_m2s_mem_cti),
+      .wb_cyc_i(wb_m2s_mem_cyc),
+      .wb_stb_i(wb_m2s_mem_stb),
+      
+      .wb_ack_o(wb_s2m_mem_ack),
+      .wb_err_o(wb_s2m_mem_err),
+      .wb_rty_o(wb_s2m_mem_rty),
+      .wb_dat_o(wb_s2m_mem_dat)
+      );
 ////////////////////////////////////////////////////////////////////////
 //
 // UART0

@@ -4,7 +4,7 @@ depend =
  mor1kx
  uart16550
  wb_bfm
- wb_ram
+ ram_wb
  wb_intercon
  adv_debug_sys
  jtag_tap
