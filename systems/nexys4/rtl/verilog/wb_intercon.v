@@ -186,7 +186,7 @@ wire        wb_s2m_resize_gpio0_rty;
 wb_mux
   #(.num_slaves (1),
     .MATCH_ADDR ({32'h00000000}),
-    .MATCH_MASK ({32'hfffff000}))
+    .MATCH_MASK ({32'hfffffc00}))
  wb_mux_or1k_i
    (.wb_clk_i  (wb_clk_i),
     .wb_rst_i  (wb_rst_i),
@@ -218,7 +218,7 @@ wb_mux
 wb_mux
   #(.num_slaves (3),
     .MATCH_ADDR ({32'h00000000, 32'h90000000, 32'h91000000}),
-    .MATCH_MASK ({32'hfffff000, 32'hfffffff8, 32'hfffffffe}))
+    .MATCH_MASK ({32'hfffffc00, 32'hfffffff8, 32'hfffffffe}))
  wb_mux_or1k_d
    (.wb_clk_i  (wb_clk_i),
     .wb_rst_i  (wb_rst_i),
@@ -250,7 +250,7 @@ wb_mux
 wb_mux
   #(.num_slaves (3),
     .MATCH_ADDR ({32'h00000000, 32'h90000000, 32'h91000000}),
-    .MATCH_MASK ({32'hfffff000, 32'hfffffff8, 32'hfffffffe}))
+    .MATCH_MASK ({32'hfffffc00, 32'hfffffff8, 32'hfffffffe}))
  wb_mux_dbg
    (.wb_clk_i  (wb_clk_i),
     .wb_rst_i  (wb_rst_i),

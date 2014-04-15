@@ -1,130 +1,181 @@
-/*
- *
- * Clock, reset generation unit for Nexsys board
- * 
- * Implements clock generation according to design defines
- * 
- */
-//////////////////////////////////////////////////////////////////////
-////                                                              ////
-//// Copyright (C) 2009, 2010 Authors and OPENCORES.ORG           ////
-////                                                              ////
-//// This source file may be used and distributed without         ////
-//// restriction provided that this copyright statement is not    ////
-//// removed from the file and that any derivative work contains  ////
-//// the original copyright notice and the associated disclaimer. ////
-////                                                              ////
-//// This source file is free software; you can redistribute it   ////
-//// and/or modify it under the terms of the GNU Lesser General   ////
-//// Public License as published by the Free Software Foundation; ////
-//// either version 2.1 of the License, or (at your option) any   ////
-//// later version.                                               ////
-////                                                              ////
-//// This source is distributed in the hope that it will be       ////
-//// useful, but WITHOUT ANY WARRANTY; without even the implied   ////
-//// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR      ////
-//// PURPOSE.  See the GNU Lesser General Public License for more ////
-//// details.                                                     ////
-////                                                              ////
-//// You should have received a copy of the GNU Lesser General    ////
-//// Public License along with this source; if not, download it   ////
-//// from http://www.opencores.org/lgpl.shtml                     ////
-////                                                              ////
-//////////////////////////////////////////////////////////////////////
+// file: clk.v
+// 
+// (c) Copyright 2008 - 2011 Xilinx, Inc. All rights reserved.
+// 
+// This file contains confidential and proprietary information
+// of Xilinx, Inc. and is protected under U.S. and
+// international copyright and other intellectual property
+// laws.
+// 
+// DISCLAIMER
+// This disclaimer is not a license and does not grant any
+// rights to the materials distributed herewith. Except as
+// otherwise provided in a valid license issued to you by
+// Xilinx, and to the maximum extent permitted by applicable
+// law: (1) THESE MATERIALS ARE MADE AVAILABLE "AS IS" AND
+// WITH ALL FAULTS, AND XILINX HEREBY DISCLAIMS ALL WARRANTIES
+// AND CONDITIONS, EXPRESS, IMPLIED, OR STATUTORY, INCLUDING
+// BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, NON-
+// INFRINGEMENT, OR FITNESS FOR ANY PARTICULAR PURPOSE; and
+// (2) Xilinx shall not be liable (whether in contract or tort,
+// including negligence, or under any other theory of
+// liability) for any loss or damage of any kind or nature
+// related to, arising under or in connection with these
+// materials, including for any direct, or any indirect,
+// special, incidental, or consequential loss or damage
+// (including loss of data, profits, goodwill, or any type of
+// loss or damage suffered as a result of any action brought
+// by a third party) even if such damage or loss was
+// reasonably foreseeable or Xilinx had been advised of the
+// possibility of the same.
+// 
+// CRITICAL APPLICATIONS
+// Xilinx products are not designed or intended to be fail-
+// safe, or for use in any application requiring fail-safe
+// performance, such as life-support or safety devices or
+// systems, Class III medical devices, nuclear facilities,
+// applications related to the deployment of airbags, or any
+// other applications that could lead to death, personal
+// injury, or severe property or environmental damage
+// (individually and collectively, "Critical
+// Applications"). Customer assumes the sole risk and
+// liability of any use of Xilinx products in Critical
+// Applications, subject only to applicable laws and
+// regulations governing limitations on product liability.
+// 
+// THIS COPYRIGHT NOTICE AND DISCLAIMER MUST BE RETAINED AS
+// PART OF THIS FILE AT ALL TIMES.
+// 
+//----------------------------------------------------------------------------
+// User entered comments
+//----------------------------------------------------------------------------
+// None
+//
+//----------------------------------------------------------------------------
+// "Output    Output      Phase     Duty      Pk-to-Pk        Phase"
+// "Clock    Freq (MHz) (degrees) Cycle (%) Jitter (ps)  Error (ps)"
+//----------------------------------------------------------------------------
+// wb_clk_o____50.000______0.000______50.0______151.636_____98.575
+//
+//----------------------------------------------------------------------------
+// "Input Clock   Freq (MHz)    Input Jitter (UI)"
+//----------------------------------------------------------------------------
+// __primary_________100.000____________0.010
 
+`timescale 1ps/1ps
+
+(* CORE_GENERATION_INFO = "clk,clk_wiz_v3_6,{component_name=clk,use_phase_alignment=true,use_min_o_jitter=false,use_max_i_jitter=false,use_dyn_phase_shift=false,use_inclk_switchover=false,use_dyn_reconfig=false,feedback_source=FDBK_AUTO,primtype_sel=MMCM_ADV,num_out_clk=1,clkin1_period=10.000,clkin2_period=10.000,use_power_down=false,use_reset=true,use_locked=true,use_inclk_stopped=false,use_status=false,use_freeze=false,use_clk_valid=false,feedback_type=SINGLE,clock_mgr_type=MANUAL,manual_override=false}" *)
 module clkgen
-  (
-   // Main clocks in, depending on board
-   sys_clk_in,
+ (// Clock in ports
+  input         sys_clk_in,
+  // Clock out ports
+  output        wb_clk_o,
+  output		wb_rst_o,
+  
+  // Status and control signals
+  input         RESET,
+  output        LOCKED
+ );
 
-   // Wishbone clock and reset out  
-   wb_clk_o,
-   wb_rst_o,     
+  // Input buffering
+  //------------------------------------
+  IBUFG clkin1_buf
+   (.O (clkin1),
+    .I (sys_clk_in));
 
-   // Asynchronous, active low reset in
-   rst_i
-   
-   );
 
-   input  sys_clk_in;
+  // Clocking primitive
+  //------------------------------------
+  // Instantiation of the MMCM primitive
+  //    * Unused inputs are tied off
+  //    * Unused outputs are labeled unused
+  wire [15:0] do_unused;
+  wire        drdy_unused;
+  wire        psdone_unused;
+  wire        clkfbout;
+  wire        clkfbout_buf;
+  wire        clkfboutb_unused;
+  wire        clkout0b_unused;
+  wire        clkout1_unused;
+  wire        clkout1b_unused;
+  wire        clkout2_unused;
+  wire        clkout2b_unused;
+  wire        clkout3_unused;
+  wire        clkout3b_unused;
+  wire        clkout4_unused;
+  wire        clkout5_unused;
+  wire        clkout6_unused;
+  wire        clkfbstopped_unused;
+  wire        clkinstopped_unused;
 
-   output wb_rst_o;
-   output wb_clk_o;   
-   
-   // Asynchronous, active low reset (pushbutton, typically)
-   input  rst_i;
-   
-   // First, deal with the asychronous reset
-   wire   async_rst;
+  MMCME2_ADV
+  #(.BANDWIDTH            ("OPTIMIZED"),
+    .CLKOUT4_CASCADE      ("FALSE"),
+    .COMPENSATION         ("ZHOLD"),
+    .STARTUP_WAIT         ("FALSE"),
+    .DIVCLK_DIVIDE        (1),
+    .CLKFBOUT_MULT_F      (10.000),
+    .CLKFBOUT_PHASE       (0.000),
+    .CLKFBOUT_USE_FINE_PS ("FALSE"),
+    .CLKOUT0_DIVIDE_F     (20.000),
+    .CLKOUT0_PHASE        (0.000),
+    .CLKOUT0_DUTY_CYCLE   (0.500),
+    .CLKOUT0_USE_FINE_PS  ("FALSE"),
+    .CLKIN1_PERIOD        (10.000),
+    .REF_JITTER1          (0.010))
+  mmcm_adv_inst
+    // Output clocks
+   (.CLKFBOUT            (clkfbout),
+    .CLKFBOUTB           (clkfboutb_unused),
+    .CLKOUT0             (clkout0),
+    .CLKOUT0B            (clkout0b_unused),
+    .CLKOUT1             (clkout1_unused),
+    .CLKOUT1B            (clkout1b_unused),
+    .CLKOUT2             (clkout2_unused),
+    .CLKOUT2B            (clkout2b_unused),
+    .CLKOUT3             (clkout3_unused),
+    .CLKOUT3B            (clkout3b_unused),
+    .CLKOUT4             (clkout4_unused),
+    .CLKOUT5             (clkout5_unused),
+    .CLKOUT6             (clkout6_unused),
+     // Input clock control
+    .CLKFBIN             (clkfbout_buf),
+    .CLKIN1              (clkin1),
+    .CLKIN2              (1'b0),
+     // Tied to always select the primary input clock
+    .CLKINSEL            (1'b1),
+    // Ports for dynamic reconfiguration
+    .DADDR               (7'h0),
+    .DCLK                (1'b0),
+    .DEN                 (1'b0),
+    .DI                  (16'h0),
+    .DO                  (do_unused),
+    .DRDY                (drdy_unused),
+    .DWE                 (1'b0),
+    // Ports for dynamic phase shift
+    .PSCLK               (1'b0),
+    .PSEN                (1'b0),
+    .PSINCDEC            (1'b0),
+    .PSDONE              (psdone_unused),
+    // Other control and status signals
+    .LOCKED              (LOCKED),
+    .CLKINSTOPPED        (clkinstopped_unused),
+    .CLKFBSTOPPED        (clkfbstopped_unused),
+    .PWRDWN              (1'b0),
+    .RST                 (RESET));
 
-   // Xilinx synthesis tools appear cluey enough to instantiate buffers when and
-   // where they're needed, so we do simple assigns for this tech.
-   assign async_rst = rst_i;   
+  // Output buffering
+  //-----------------------------------
+  BUFG clkf_buf
+   (.O (clkfbout_buf),
+    .I (clkfbout));
 
-   //
-   // Declare synchronous reset wires here
-   //
-   
-   // An active-low synchronous reset signal (usually a PLL lock signal)
-   wire   sync_rst_n;
+  BUFG clkout1_buf
+   (.O   (wb_clk_o),
+    .I   (clkout0));
 
-   wire       sys_clk_in_100;
-   /* DCM0 wires */
-   wire 	   dcm0_clk0_prebufg, dcm0_clk0;
-   wire 	   dcm0_clkfx_prebufg, dcm0_clkfx;
-   wire 	   dcm0_clkdv_prebufg, dcm0_clkdv;
-   wire 	   dcm0_locked;
-
-   IBUFG inclk_bufg(.I(sys_clk_in), .O(sys_clk_in_100));
-   
-   /* DCM providing main system/Wishbone clock */
-   DCM_SP dcm0
-     (
-      // Outputs
-      .CLK0                              (dcm0_clk0_prebufg),
-      .CLK180                            (),
-      .CLK270                            (),
-      .CLK2X180                          (),
-      .CLK2X                             (),
-      .CLK90                             (),
-      .CLKDV                             (dcm0_clkdv_prebufg),
-      .CLKFX180                          (),
-      .CLKFX                             (dcm0_clkfx_prebufg),
-      .LOCKED                            (dcm0_locked),
-      // Inputs
-      .CLKFB                             (dcm0_clk0),
-      .CLKIN                             (sys_clk_in_100),
-      .PSEN                              (1'b0),
-      .PSINCDEC                          (1'b0),
-      .RST                               (1'b0));
-   
-   // Generate 266 MHz from CLKFX
-   defparam    dcm0.CLKFX_MULTIPLY    = 4;
-   defparam    dcm0.CLKFX_DIVIDE      = 3;
-
-   // Generate 100 MHz from CLKDV
-   defparam    dcm0.CLKDV_DIVIDE      = 2.0;
-
-   BUFG dcm0_clk0_bufg
-     (// Outputs
-      .O                                 (dcm0_clk0),
-      // Inputs
-      .I                                 (dcm0_clk0_prebufg));
-
-   BUFG dcm0_clkfx_bufg
-     (// Outputs
-      .O                                 (dcm0_clkfx),
-      // Inputs
-      .I                                 (dcm0_clkfx_prebufg));
-
-   BUFG dcm0_clkdv_bufg
-     (// Outputs
-      .O                                 (dcm0_clkdv),
-      // Inputs
-      .I                                 (dcm0_clkdv_prebufg));
-
-   assign wb_clk_o = dcm0_clkdv;
-   assign sync_rst_n = dcm0_locked;
+	wire sync_rst_n;
+   assign sync_rst_n = LOCKED;
 
    //
    // Reset generation
@@ -133,8 +184,8 @@ module clkgen
 
    // Reset generation for wishbone
    reg [15:0] 	   wb_rst_shr;
-   always @(posedge wb_clk_o or posedge async_rst)
-     if (async_rst)
+   always @(posedge wb_clk_o or posedge RESET)
+     if (RESET)
        wb_rst_shr <= 16'hffff;
      else
        wb_rst_shr <= {wb_rst_shr[14:0], ~(sync_rst_n)};

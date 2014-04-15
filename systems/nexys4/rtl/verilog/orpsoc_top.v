@@ -45,7 +45,8 @@ clkgen clkgen0
 	.wb_rst_o (wb_rst),
 
 	// Asynchronous active low reset
-	.rst_i (reset_invert)
+	.RESET (reset_invert),
+	.LOCKED()
  );
 ////////////////////////////////////////////////////////////////////////
 //
@@ -248,8 +249,8 @@ adbg_top dbg_if0 (
 ////////////////////////////////////////////////////////////////////////
 ram_wb_b3 
    #(
-     .mem_size_bytes(32'h0000_1000), // 4 KByte
-     .mem_adr_width(12) //log2(mem_size_bytes)
+     .mem_size_bytes(32'h0000_0400), // 4 KByte
+     .mem_adr_width(10) //log2(mem_size_bytes)
      )
    ram_wb0
      (
