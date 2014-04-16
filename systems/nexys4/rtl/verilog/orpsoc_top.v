@@ -10,6 +10,19 @@ input	rst_n_pad_i,
 input	uart0_srx_pad_i,
 output	uart0_stx_pad_o,
 
+// Cell RAM
+inout [15:0]    cellram_dq_io,
+output [22:0]    cellram_adr_o,
+output 	    cellram_adv_n_o,
+output 	    cellram_ce_n_o,
+output 	    cellram_clk_o,
+output 	    cellram_oe_n_o,
+input 	    cellram_wait_i,
+output 	    cellram_we_n_o,
+output 	    cellram_cre_o,
+output           cellram_ub_n_o,
+output           cellram_lb_n_o,
+
 // GPIO
 inout	[7:0]	gpio0_io
 
@@ -247,30 +260,40 @@ adbg_top dbg_if0 (
 // ram_wb0
 //
 ////////////////////////////////////////////////////////////////////////
-ram_wb_b3 
-   #(
-     .mem_size_bytes(32'h0000_0400), // 4 KByte
-     .mem_adr_width(10) //log2(mem_size_bytes)
-     )
-   ram_wb0
+cellram_ctrl
+     /* Use the simple flash interface */
+     #(
+       .cellram_read_cycles(4), // 70ns in cycles, at 50MHz 4=80ns
+       .cellram_write_cycles(4)) // 70ns in cycles, at 50Mhz 4=80ns
+     cellram_ctrl0
      (
-      // Wishbone slave interface 0
-      .wb_clk_i(wb_clk),
+      .wb_clk_i(wb_clk), 
       .wb_rst_i(wb_rst),
-      
+
       .wb_adr_i(wb_m2s_mem_adr),
       .wb_dat_i(wb_m2s_mem_dat),
-      .wb_sel_i(wb_m2s_mem_sel),
-      .wb_we_i(wb_m2s_mem_we),
-      .wb_bte_i(wb_m2s_mem_bte),
-      .wb_cti_i(wb_m2s_mem_cti),
-      .wb_cyc_i(wb_m2s_mem_cyc),
       .wb_stb_i(wb_m2s_mem_stb),
-      
-      .wb_ack_o(wb_s2m_mem_ack),
+      .wb_cyc_i(wb_m2s_mem_cyc),
+      .wb_we_i (wb_m2s_mem_we ),
+      .wb_sel_i(wb_m2s_mem_sel),
+      .wb_dat_o(wb_s2m_mem_dat),
+      .wb_ack_o(wb_s2m_mem_ack), 
       .wb_err_o(wb_s2m_mem_err),
       .wb_rty_o(wb_s2m_mem_rty),
-      .wb_dat_o(wb_s2m_mem_dat)
+      
+      .cellram_dq_io(cellram_dq_io),
+      .cellram_adr_o(cellram_adr_o),
+      .cellram_adv_n_o(cellram_adv_n_o),
+      .cellram_ce_n_o(cellram_ce_n_o),
+      .cellram_clk_o(cellram_clk_o),
+      .cellram_oe_n_o(cellram_oe_n_o),
+      .cellram_rst_n_o(),
+      .cellram_wait_i(cellram_wait_i),
+      .cellram_we_n_o(cellram_we_n_o),
+      .cellram_wp_n_o(),
+      .cellram_lb_n_o(cellram_lb_n_o),
+      .cellram_ub_n_o(cellram_ub_n_o),
+      .cellram_cre_o(cellram_cre_o)
       );
 ////////////////////////////////////////////////////////////////////////
 //

@@ -4,7 +4,6 @@ depend =
  mor1kx
  uart16550
  wb_bfm
- ram_wb
  wb_intercon
  adv_debug_sys
  jtag_tap
@@ -18,6 +17,7 @@ src_files =
  rtl/verilog/orpsoc_top.v
  rtl/verilog/clkgen.v
  rtl/verilog/wb_intercon.v
+ rtl/verilog/cellram_ctrl.v
 
 include_files =
  rtl/verilog/wb_intercon.vh
